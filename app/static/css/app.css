@@ -1,0 +1,85 @@
+/* Ajustes pontuais sobre Bootstrap 5 — CondoAgenda */
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1080;
+  padding: 0.5rem 1rem;
+  background: #0b3d2e;
+  color: #fff;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+.navbar-condo {
+  background-color: #0b3d2e;
+}
+
+.navbar-condo .navbar-brand,
+.navbar-condo .nav-link,
+.navbar-condo .navbar-text {
+  color: #f4faf7;
+}
+
+.navbar-condo .nav-link:hover,
+.navbar-condo .nav-link:focus,
+.navbar-condo .navbar-brand:hover,
+.navbar-condo .navbar-brand:focus {
+  color: #fff;
+}
+
+.navbar-condo .nav-link.active {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+
+.btn-condo {
+  background-color: #0b3d2e;
+  border-color: #0b3d2e;
+  color: #fff;
+}
+
+.btn-condo:hover,
+.btn-condo:focus {
+  background-color: #072a20;
+  border-color: #072a20;
+  color: #fff;
+}
+
+.space-card {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  height: 100%;
+}
+
+.space-card:hover,
+.space-card:focus {
+  box-shadow: 0 0.35rem 1rem rgba(11, 61, 46, 0.18);
+  transform: translateY(-2px);
+  color: inherit;
+}
+
+.space-card img {
+  object-fit: cover;
+  height: 160px;
+  width: 100%;
+}
+
+.site-footer {
+  border-top: 1px solid #dee2e6;
+  color: #495057;
+  font-size: 0.875rem;
+}
+
+.form-error {
+  color: #842029;
+}

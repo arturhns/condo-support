@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Ambiente
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Testes
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.cache
+coverage.xml
+
+# Docker / local
+docker-compose.override.yml
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*~
+SPEC.md
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Ferramentas
+.mypy_cache/
+.ruff_cache/
+.cursorignore
+.cursorindexingignore

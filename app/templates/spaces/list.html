@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Áreas comuns — CondoAgenda{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-2">Áreas comuns</h1>
+<p class="text-secondary mb-4">Consulte as áreas disponíveis para reserva no condomínio.</p>
+
+{% if spaces %}
+  <div class="row g-4">
+    {% for space in spaces %}
+      <div class="col-md-6 col-lg-4">
+        <a class="space-card card border-0 shadow-sm" href="{% url 'space_detail' space.slug %}">
+          {% if space.image %}
+            <img src="{{ space.image.url }}" class="card-img-top" alt="{{ space.name }}">
+          {% endif %}
+          <div class="card-body">
+            <h2 class="h5 card-title">{{ space.name }}</h2>
+            <ul class="list-unstyled mb-0 small text-secondary">
+              <li>Capacidade: {{ space.capacity }} pessoas</li>
+              <li>Funcionamento: {{ space.opening_time|time:"H:i" }} – {{ space.closing_time|time:"H:i" }}</li>
+              <li>Cancelamento: até {{ space.min_cancel_hours }}h antes</li>
+            </ul>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-secondary">Nenhuma área comum ativa no momento.</p>
+{% endif %}
+{% endblock %}

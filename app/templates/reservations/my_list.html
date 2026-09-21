@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Minhas reservas — CondoAgenda{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-2">Minhas reservas</h1>
+<p class="text-secondary mb-4">Reservas vinculadas à sua conta. Cancelamento e reagendamento virão no próximo incremento.</p>
+
+{% if reservations %}
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th scope="col">Protocolo</th>
+          <th scope="col">Área</th>
+          <th scope="col">Início</th>
+          <th scope="col">Fim</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for reservation in reservations %}
+          <tr>
+            <td>{{ reservation.protocol }}</td>
+            <td>
+              <a href="{% url 'space_detail' reservation.space.slug %}">{{ reservation.space.name }}</a>
+            </td>
+            <td>{{ reservation.start_at|date:"d/m/Y H:i" }}</td>
+            <td>{{ reservation.end_at|date:"d/m/Y H:i" }}</td>
+            <td>
+              {% if reservation.status == "confirmed" %}
+                <span class="badge text-bg-success">{{ reservation.get_status_display }}</span>
+              {% elif reservation.status == "cancelled" %}
+                <span class="badge text-bg-secondary">{{ reservation.get_status_display }}</span>
+              {% elif reservation.status == "rescheduled" %}
+                <span class="badge text-bg-warning text-dark">{{ reservation.get_status_display }}</span>
+              {% else %}
+                <span class="badge text-bg-light text-dark">{{ reservation.get_status_display }}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-secondary mb-0">Você ainda não possui reservas.</p>
+  <p class="mt-2"><a href="{% url 'space_list' %}">Ver áreas comuns</a></p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ space.name }} — CondoAgenda{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'space_list' %}">Áreas comuns</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ space.name }}</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <h1 class="h3 mb-3">{{ space.name }}</h1>
+
+    {% if space.image %}
+      <img
+        src="{{ space.image.url }}"
+        class="img-fluid rounded mb-3"
+        alt="{{ space.name }}"
+      >
+    {% endif %}
+
+    {% if space.description %}
+      <h2 class="h5">Descrição</h2>
+      <p>{{ space.description }}</p>
+    {% endif %}
+
+    <h2 class="h5">Informações</h2>
+    <ul>
+      <li>Capacidade: {{ space.capacity }} pessoas</li>
+      <li>Horário de funcionamento: {{ space.opening_time|time:"H:i" }} – {{ space.closing_time|time:"H:i" }}</li>
+      <li>Prazo de cancelamento: {{ space.min_cancel_hours }} horas antes do início</li>
+    </ul>
+
+    <p class="text-secondary">O calendário de horários entra no próximo incremento.</p>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="border rounded p-3 bg-light">
+      <h2 class="h6">Reservar</h2>
+      <p class="small text-secondary mb-3">A reserva online será liberada no próximo incremento.</p>
+      <button type="button" class="btn btn-condo w-100" disabled aria-disabled="true">
+        Reservar
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
