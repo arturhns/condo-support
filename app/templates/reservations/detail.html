@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Reserva {{ reservation.protocol }} — CondoAgenda{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'my_reservations' %}">Minhas reservas</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ reservation.protocol }}</li>
+  </ol>
+</nav>
+
+<h1 class="h3 mb-3">Reserva {{ reservation.protocol }}</h1>
+
+<dl class="row mb-4">
+  <dt class="col-sm-3">Área</dt>
+  <dd class="col-sm-9">
+    <a href="{% url 'space_detail' reservation.space.slug %}">{{ reservation.space.name }}</a>
+  </dd>
+  <dt class="col-sm-3">Início</dt>
+  <dd class="col-sm-9">{{ reservation.start_at|date:"d/m/Y H:i" }}</dd>
+  <dt class="col-sm-3">Fim</dt>
+  <dd class="col-sm-9">{{ reservation.end_at|date:"d/m/Y H:i" }}</dd>
+  <dt class="col-sm-3">Status</dt>
+  <dd class="col-sm-9">
+    {% if reservation.status == "confirmed" %}
+      <span class="badge text-bg-success">{{ reservation.get_status_display }}</span>
+    {% elif reservation.status == "cancelled" %}
+      <span class="badge text-bg-secondary">{{ reservation.get_status_display }}</span>
+    {% elif reservation.status == "rescheduled" %}
+      <span class="badge text-bg-warning text-dark">{{ reservation.get_status_display }}</span>
+    {% else %}
+      <span class="badge text-bg-light text-dark">{{ reservation.get_status_display }}</span>
+    {% endif %}
+  </dd>
+  <dt class="col-sm-3">Protocolo</dt>
+  <dd class="col-sm-9">{{ reservation.protocol }}</dd>
+  <dt class="col-sm-3">Convidados</dt>
+  <dd class="col-sm-9">
+    {% if reservation.guests.all %}
+      <ul class="mb-0 list-unstyled">
+        {% for guest in reservation.guests.all %}
+          <li>{{ guest.name }}</li>
+        {% endfor %}
+      </ul>
+      <p class="form-text mb-0">Total informado: {{ reservation.guests_count }}</p>
+    {% else %}
+      <span class="text-secondary">Nenhum convidado cadastrado (total: {{ reservation.guests_count }})</span>
+    {% endif %}
+  </dd>
+</dl>
+
+{% if cancel_deadline_passed %}
+  <p class="text-secondary" role="status">
+    Cancelamento permitido até {{ reservation.space.min_cancel_hours }}h antes do início.
+  </p>
+{% endif %}
+
+<div class="d-flex flex-wrap gap-2">
+  {% if allow_cancel %}
+    <a class="btn btn-outline-danger" href="{% url 'reservation_cancel' reservation.pk %}">Cancelar</a>
+  {% endif %}
+  {% if allow_reschedule %}
+    <a class="btn btn-outline-secondary" href="{% url 'reservation_reschedule' reservation.pk %}">Reagendar</a>
+  {% endif %}
+  <a class="btn btn-link" href="{% url 'my_reservations' %}">Voltar</a>
+</div>
+{% endblock %}

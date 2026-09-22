@@ -1,30 +1,42 @@
 {% extends "base.html" %}
 
-{% block title %}{{ space.name }} — CondoAgenda{% endblock %}
+{% block title %}{% if reschedule_of %}Reagendar {{ reschedule_of.protocol }} — {{ space.name }}{% else %}{{ space.name }}{% endif %} — CondoAgenda{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
   <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'space_list' %}">Áreas comuns</a></li>
-    <li class="breadcrumb-item active" aria-current="page">{{ space.name }}</li>
+    {% if reschedule_of %}
+      <li class="breadcrumb-item"><a href="{% url 'my_reservations' %}">Minhas reservas</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'reservation_detail' reschedule_of.protocol %}">{{ reschedule_of.protocol }}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Reagendar</li>
+    {% else %}
+      <li class="breadcrumb-item"><a href="{% url 'space_list' %}">Áreas comuns</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{ space.name }}</li>
+    {% endif %}
   </ol>
 </nav>
 
 <div class="row g-4">
-  <div class="col-lg-8">
-    <h1 class="h3 mb-3">{{ space.name }}</h1>
+  <div class="col-lg-5">
+    {% if reschedule_of %}
+      <h1 class="h3 mb-3">Reagendar {{ reschedule_of.protocol }} — {{ space.name }}</h1>
+      <p class="mb-3">Escolha um horário livre. O formulário abre com o slot; a reserva só muda após confirmar.</p>
+      <p class="small text-secondary">Horário atual: {{ reschedule_of.start_at|date:"d/m/Y H:i" }} – {{ reschedule_of.end_at|date:"d/m/Y H:i" }}</p>
+    {% else %}
+      <h1 class="h3 mb-3">{{ space.name }}</h1>
 
-    {% if space.image %}
-      <img
-        src="{{ space.image.url }}"
-        class="img-fluid rounded mb-3"
-        alt="{{ space.name }}"
-      >
-    {% endif %}
+      {% if space.image %}
+        <img
+          src="{{ space.image.url }}"
+          class="img-fluid rounded mb-3"
+          alt="{{ space.name }}"
+        >
+      {% endif %}
 
-    {% if space.description %}
-      <h2 class="h5">Descrição</h2>
-      <p>{{ space.description }}</p>
+      {% if space.description %}
+        <h2 class="h5">Descrição</h2>
+        <p>{{ space.description }}</p>
+      {% endif %}
     {% endif %}
 
     <h2 class="h5">Informações</h2>
@@ -33,18 +45,77 @@
       <li>Horário de funcionamento: {{ space.opening_time|time:"H:i" }} – {{ space.closing_time|time:"H:i" }}</li>
       <li>Prazo de cancelamento: {{ space.min_cancel_hours }} horas antes do início</li>
     </ul>
-
-    <p class="text-secondary">O calendário de horários entra no próximo incremento.</p>
+    <p class="small text-secondary mb-0">Cada horário livre dura 1 hora. Horários marcados como reservados não mostram quem reservou.</p>
   </div>
 
-  <div class="col-lg-4">
-    <div class="border rounded p-3 bg-light">
-      <h2 class="h6">Reservar</h2>
-      <p class="small text-secondary mb-3">A reserva online será liberada no próximo incremento.</p>
-      <button type="button" class="btn btn-condo w-100" disabled aria-disabled="true">
-        Reservar
-      </button>
+  <div class="col-lg-7">
+    {% if date_invalid %}
+      <p class="alert alert-warning" role="alert">Data inválida. Mostrando o dia de hoje.</p>
+    {% endif %}
+
+    <h2 class="h5" id="calendario-titulo">Calendário</h2>
+    <nav aria-label="Navegação do mês" class="d-flex justify-content-between align-items-center mb-2">
+      <a href="?date={{ prev_month|date:'Y-m-d' }}">Mês anterior</a>
+      <p class="h6 mb-0" aria-live="polite">{{ month_label }}</p>
+      <a href="?date={{ next_month|date:'Y-m-d' }}">Próximo mês</a>
+    </nav>
+
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered text-center align-middle mb-0 calendar-table">
+        <caption class="visually-hidden">Calendário de {{ month_label }}. Escolha um dia para ver os horários.</caption>
+        <thead>
+          <tr>
+            {% for weekday in weekdays %}
+              <th scope="col">{{ weekday }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for week in weeks %}
+            <tr>
+              {% for day in week %}
+                <td>
+                  {% if day %}
+                    <a
+                      class="calendar-day"
+                      href="?date={{ day|date:'Y-m-d' }}"
+                      {% if day == selected %}aria-current="date"{% endif %}
+                    >{{ day.day }}</a>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+
+    <h2 class="h5" id="horarios-dia">Horários em {{ selected|date:"d/m/Y" }}</h2>
+    {% if slots %}
+      <ul class="slot-list" aria-labelledby="horarios-dia">
+        {% for slot in slots %}
+          <li>
+            {% if slot.occupied %}
+              <button type="button" class="btn btn-secondary w-100" disabled aria-disabled="true">Reservado {{ slot.label }}</button>
+            {% elif reschedule_of %}
+              <a
+                class="btn btn-outline-primary w-100"
+                href="{% url 'reservation_reschedule' reschedule_of.pk %}?start={{ slot.start_iso|urlencode }}"
+              >
+                {% if slot.is_current %}
+                  <span class="badge text-bg-info text-dark me-1">atual</span>
+                {% endif %}
+                Reagendar para {{ slot.label }}
+              </a>
+            {% else %}
+              <a class="btn btn-outline-primary w-100" href="{% url 'reservation_create' space.slug %}?start={{ slot.start_iso|urlencode }}">Reservar {{ slot.label }}</a>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-secondary mb-0">Não há horários de 1 hora dentro do funcionamento neste dia.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

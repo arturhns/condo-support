@@ -138,10 +138,35 @@ def reschedule_reservation(
     start_at: datetime,
     end_at: datetime,
     notes: str | None = None,
+    guests_count: int | None = None,
+    guest_names: Iterable[str] | None = None,
 ) -> Reservation:
-    """Marca a original como rescheduled e cria nova confirmed ligada."""
+    """Marca a original como rescheduled e cria nova confirmed ligada.
+
+    Sempre na mesma área. Início e fim devem cair no mesmo dia local.
+    Sobreposição ignora a reserva original (exclude_id).
+    """
+    from app.services.availability import is_within_operating_hours
+
     if reservation.status != Reservation.Status.CONFIRMED:
         raise ReservationError("Somente reservas confirmadas podem ser reagendadas.")
+
+    if end_at <= start_at:
+        raise ReservationError("O horário de término deve ser posterior ao início.")
+
+    tz = timezone.get_current_timezone()
+    local_start = timezone.localtime(start_at, tz)
+    local_end = timezone.localtime(end_at, tz)
+    if local_start.date() != local_end.date():
+        raise ReservationError("A reserva não pode cruzar a meia-noite.")
+
+    if not is_within_operating_hours(reservation.space, start_at, end_at):
+        opening = reservation.space.opening_time.strftime("%H:%M")
+        closing = reservation.space.closing_time.strftime("%H:%M")
+        raise ReservationError(
+            "Horário fora do funcionamento do espaço "
+            f"({opening} às {closing}, no mesmo dia)."
+        )
 
     if has_overlap(
         reservation.space,
@@ -150,6 +175,18 @@ def reschedule_reservation(
         exclude_id=reservation.pk,
     ):
         raise ReservationError("Já existe reserva neste horário para o espaço.")
+
+    if guest_names is not None:
+        names = [n.strip() for n in guest_names if n and n.strip()]
+    else:
+        names = [g.name for g in reservation.guests.all()]
+
+    if guests_count is not None:
+        count = guests_count
+    elif guest_names is not None:
+        count = len(names)
+    else:
+        count = reservation.guests_count
 
     reservation.status = Reservation.Status.RESCHEDULED
     reservation.save(update_fields=["status", "updated_at"])
@@ -167,15 +204,11 @@ def reschedule_reservation(
         status=Reservation.Status.CONFIRMED,
         notes=notes if notes is not None else reservation.notes,
         protocol=_next_protocol(start_at),
-        guests_count=reservation.guests_count,
+        guests_count=count,
         related_reservation=reservation,
     )
-    # Copia convidados para a nova reserva
     Guest.objects.bulk_create(
-        [
-            Guest(reservation=new_reservation, name=g.name)
-            for g in reservation.guests.all()
-        ]
+        [Guest(reservation=new_reservation, name=name) for name in names]
     )
     ReservationEvent.objects.create(
         reservation=new_reservation,

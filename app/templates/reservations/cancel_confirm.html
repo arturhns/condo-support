@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Cancelar reserva — CondoAgenda{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'my_reservations' %}">Minhas reservas</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'reservation_detail' reservation.protocol %}">{{ reservation.protocol }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Cancelar</li>
+  </ol>
+</nav>
+
+<h1 class="h3 mb-3">Cancelar reserva</h1>
+
+<p class="mb-4">Tem certeza que deseja cancelar a reserva {{ reservation.protocol }}?</p>
+
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">Confirmar cancelamento</button>
+  <a class="btn btn-link" href="{% url 'reservation_detail' reservation.protocol %}">Voltar</a>
+</form>
+{% endblock %}

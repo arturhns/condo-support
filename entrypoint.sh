@@ -21,4 +21,19 @@ echo "PostgreSQL disponível."
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
-exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2
+# Em DEBUG, --reload aplica mudanças de código sem docker compose restart.
+# 1 worker evita reinícios cruzados entre workers durante o reload.
+case "${DEBUG}" in
+  True|true|1)
+    echo "Gunicorn com --reload (DEBUG=${DEBUG})."
+    exec gunicorn config.wsgi:application \
+      --bind 0.0.0.0:8000 \
+      --workers 1 \
+      --reload
+    ;;
+  *)
+    exec gunicorn config.wsgi:application \
+      --bind 0.0.0.0:8000 \
+      --workers 2
+    ;;
+esac

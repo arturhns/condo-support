@@ -4,9 +4,9 @@
 
 {% block content %}
 <h1 class="h3 mb-2">Minhas reservas</h1>
-<p class="text-secondary mb-4">Reservas vinculadas à sua conta. Cancelamento e reagendamento virão no próximo incremento.</p>
+<p class="text-secondary mb-4">Reservas vinculadas à sua conta. Use Ver para detalhes, Cancelar ou Reagendar quando permitido.</p>
 
-{% if reservations %}
+{% if page_obj.object_list %}
   <div class="table-responsive">
     <table class="table table-striped align-middle">
       <thead>
@@ -16,10 +16,12 @@
           <th scope="col">Início</th>
           <th scope="col">Fim</th>
           <th scope="col">Status</th>
+          <th scope="col">Ações</th>
         </tr>
       </thead>
       <tbody>
-        {% for reservation in reservations %}
+        {% for row in page_obj %}
+          {% with reservation=row.reservation %}
           <tr>
             <td>{{ reservation.protocol }}</td>
             <td>
@@ -38,11 +40,47 @@
                 <span class="badge text-bg-light text-dark">{{ reservation.get_status_display }}</span>
               {% endif %}
             </td>
+            <td>
+              <div class="d-flex flex-wrap gap-2" role="group" aria-label="Ações da reserva {{ reservation.protocol }}">
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'reservation_detail' reservation.protocol %}">Ver</a>
+                {% if row.allow_reschedule %}
+                  <a class="btn btn-outline-secondary btn-sm" href="{% url 'reservation_reschedule' reservation.pk %}">Reagendar</a>
+                {% endif %}
+                {% if row.allow_cancel %}
+                  <a class="btn btn-outline-danger btn-sm" href="{% url 'reservation_cancel' reservation.pk %}">Cancelar</a>
+                {% endif %}
+              </div>
+            </td>
           </tr>
+          {% endwith %}
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+    <nav aria-label="Paginação das reservas" class="mt-3">
+      <ul class="pagination mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Próxima</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
 {% else %}
   <p class="text-secondary mb-0">Você ainda não possui reservas.</p>
   <p class="mt-2"><a href="{% url 'space_list' %}">Ver áreas comuns</a></p>

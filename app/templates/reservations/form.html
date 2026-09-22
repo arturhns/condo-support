@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} — CondoAgenda{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    {% if reschedule_of %}
+      <li class="breadcrumb-item"><a href="{% url 'my_reservations' %}">Minhas reservas</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'reservation_detail' reschedule_of.protocol %}">{{ reschedule_of.protocol }}</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'reservation_reschedule' reschedule_of.pk %}{% if back_date %}?date={{ back_date }}{% endif %}">Calendário</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Formulário</li>
+    {% else %}
+      <li class="breadcrumb-item"><a href="{% url 'space_list' %}">Áreas comuns</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'space_detail' space.slug %}{% if back_date %}?date={{ back_date }}{% endif %}">{{ space.name }}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Reservar</li>
+    {% endif %}
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <header class="mb-4">
+      <h1 class="h3 mb-1">{{ page_title }}</h1>
+      <p class="mb-0 text-secondary" id="reserva-data">Data selecionada: {{ form.date_display }}</p>
+    </header>
+    {% if reschedule_of %}
+      <p class="mb-4"><a href="{% url 'reservation_reschedule' reschedule_of.pk %}{% if back_date %}?date={{ back_date }}{% endif %}">Voltar ao calendário</a></p>
+    {% else %}
+      <p class="mb-4"><a href="{% url 'space_detail' space.slug %}{% if back_date %}?date={{ back_date }}{% endif %}">Voltar ao calendário</a></p>
+    {% endif %}
+
+    {% if form.non_field_errors %}
+      <div id="form-errors" class="alert alert-danger" role="alert">
+        {% for error in form.non_field_errors %}
+          <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <form
+      method="post"
+      novalidate
+      {% if locked_date %}action="?date={{ locked_date.isoformat }}"{% endif %}
+      {% if form.non_field_errors %}aria-describedby="form-errors"{% endif %}
+    >
+      {% csrf_token %}
+      <input type="hidden" name="date" id="id_date" value="{{ form.date_iso }}">
+      {% if form.date.errors %}
+        <div class="alert alert-danger" role="alert">
+          {% for error in form.date.errors %}{{ error }}{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="mb-3">
+        <label class="form-label" for="id_start_time">{{ form.start_time.label }}</label>
+        <input
+          type="time"
+          name="start_time"
+          id="id_start_time"
+          class="form-control{% if form.start_time.errors %} is-invalid{% endif %}"
+          value="{{ form.start_input }}"
+          min="{{ form.start_min }}"
+          max="{{ form.start_max }}"
+          step="3600"
+          required
+          {% if form.start_time.errors %}aria-invalid="true" aria-describedby="id_start_time-error"{% endif %}
+        >
+        {% if form.start_time.errors %}
+          <div id="id_start_time-error" class="invalid-feedback d-block" role="alert">
+            {% for error in form.start_time.errors %}{{ error }}{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="id_end_time">{{ form.end_time.label }}</label>
+        <input
+          type="time"
+          name="end_time"
+          id="id_end_time"
+          class="form-control{% if form.end_time.errors %} is-invalid{% endif %}"
+          value="{{ form.end_input }}"
+          min="{{ form.end_min }}"
+          max="{{ form.end_max }}"
+          step="3600"
+          required
+          {% if form.end_time.errors %}aria-invalid="true" aria-describedby="id_end_time-error"{% endif %}
+        >
+        {% if form.end_time.errors %}
+          <div id="id_end_time-error" class="invalid-feedback d-block" role="alert">
+            {% for error in form.end_time.errors %}{{ error }}{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="{{ form.guests_count.id_for_label }}">{{ form.guests_count.label }}</label>
+        <input
+          type="number"
+          name="{{ form.guests_count.html_name }}"
+          id="{{ form.guests_count.id_for_label }}"
+          class="form-control{% if form.guests_count.errors %} is-invalid{% endif %}"
+          min="1"
+          max="{{ space.capacity }}"
+          required
+          value="{{ form.guests_count.value|default_if_none:'' }}"
+          aria-describedby="pessoas-ajuda{% if form.guests_count.errors %} {{ form.guests_count.id_for_label }}-error{% endif %}"
+          {% if form.guests_count.errors %}aria-invalid="true"{% endif %}
+        >
+        <p id="pessoas-ajuda" class="form-text mb-0">Máximo de {{ space.capacity }} pessoas.</p>
+        {% if form.guests_count.errors %}
+          <div id="{{ form.guests_count.id_for_label }}-error" class="invalid-feedback d-block" role="alert">
+            {% for error in form.guests_count.errors %}{{ error }}{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <fieldset class="mb-3">
+        <legend class="h5">Convidados</legend>
+        <p id="convidados-instrucao" class="form-text">
+          Opcional. Use Adicionar convidado para incluir um nome. Tab leva ao campo e ao botão Remover.
+        </p>
+        <ul id="lista-convidados" class="list-unstyled mb-3">
+          {% for name in guest_names %}
+            <li class="guest-row d-flex gap-2 mb-2 align-items-end">
+              <div class="flex-grow-1">
+                <label class="form-label mb-1" for="guest-name-{{ forloop.counter }}">Nome do convidado</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="guest_names"
+                  id="guest-name-{{ forloop.counter }}"
+                  value="{{ name }}"
+                  maxlength="120"
+                  autocomplete="name"
+                >
+              </div>
+              <button type="button" class="btn btn-outline-danger">Remover</button>
+            </li>
+          {% endfor %}
+        </ul>
+        <button
+          type="button"
+          id="adicionar-convidado"
+          class="btn btn-outline-secondary"
+          aria-controls="lista-convidados"
+          aria-describedby="convidados-instrucao"
+        >Adicionar convidado</button>
+      </fieldset>
+
+      <div class="mb-4">
+        <label class="form-label" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+        <textarea
+          name="{{ form.notes.html_name }}"
+          id="{{ form.notes.id_for_label }}"
+          class="form-control{% if form.notes.errors %} is-invalid{% endif %}"
+          rows="3"
+          {% if form.notes.errors %}aria-invalid="true" aria-describedby="{{ form.notes.id_for_label }}-error"{% endif %}
+        >{{ form.notes.value|default_if_none:'' }}</textarea>
+        {% if form.notes.errors %}
+          <div id="{{ form.notes.id_for_label }}-error" class="invalid-feedback d-block" role="alert">
+            {% for error in form.notes.errors %}{{ error }}{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      {% if reschedule_of %}
+        <button type="submit" class="btn btn-condo">Confirmar reagendamento</button>
+      {% else %}
+        <button type="submit" class="btn btn-condo">Confirmar</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/guests.js' %}"></script>
+  <script>
+    (function () {
+      var start = document.getElementById("id_start_time");
+      var end = document.getElementById("id_end_time");
+      if (!start || !end) return;
+
+      function addOneHour(hhmm) {
+        if (!hhmm) return "";
+        var parts = hhmm.split(":");
+        var h = parseInt(parts[0], 10) + 1;
+        var m = parts[1] || "00";
+        if (h > 23) h = 23;
+        return String(h).padStart(2, "0") + ":" + m;
+      }
+
+      function syncEndMin() {
+        var minEnd = addOneHour(start.value);
+        if (!minEnd) return;
+        end.min = minEnd;
+        if (end.value && end.value <= start.value) {
+          end.value = minEnd;
+        }
+      }
+
+      start.addEventListener("change", syncEndMin);
+    })();
+  </script>
+{% endblock %}

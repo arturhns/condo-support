@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 import pytest
 from django.utils import timezone
@@ -30,15 +30,16 @@ def space(db):
         name="Salão de Festas",
         slug="salao-de-festas",
         capacity=40,
-        opening_time="08:00",
-        closing_time="22:00",
+        opening_time=time(8, 0),
+        closing_time=time(22, 0),
         min_cancel_hours=48,
     )
 
 
 @pytest.fixture
 def base_start():
-    return timezone.now() + timedelta(days=10)
+    day = timezone.localdate() + timedelta(days=10)
+    return timezone.make_aware(datetime.combine(day, time(14, 0)))
 
 
 def test_overlap_same_space_is_rejected(resident, space, base_start):

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Reserva indisponível — CondoAgenda{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Somente moradores podem reservar</h1>
+<p>A gestão cadastra reservas pelo admin do Django.</p>
+<p class="mb-0"><a href="{% url 'space_detail' space.slug %}">Voltar para {{ space.name }}</a></p>
+{% endblock %}

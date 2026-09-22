@@ -83,3 +83,38 @@
 .form-error {
   color: #842029;
 }
+
+.calendar-table a.calendar-day {
+  display: inline-block;
+  min-width: 2.25rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 0.25rem;
+  color: #0b3d2e;
+  text-decoration: none;
+}
+
+.calendar-table a.calendar-day:hover,
+.calendar-table a.calendar-day:focus {
+  background: #e7f5ef;
+  color: #072a20;
+}
+
+.calendar-table a.calendar-day[aria-current="date"] {
+  background: #0b3d2e;
+  color: #fff;
+  font-weight: 700;
+}
+
+.slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.slot-list a,
+.slot-list button {
+  text-align: left;
+}
