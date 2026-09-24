@@ -4,7 +4,7 @@ Protótipo acadêmico do **PJI240** (Projeto Integrador em Computação II — U
 
 Sistema web para consulta, reserva, reagendamento e cancelamento de áreas comuns de condomínio (salão, churrasqueira, quadra etc.), com calendário de disponibilidade, lista de convidados, e-mail de confirmação e painel da gestão.
 
-> Etapa atual: o morador reserva horários livres, vê o protocolo em Minhas reservas, consulta o detalhe, cancela (dentro do prazo `min_cancel_hours`, padrão 48h) e reagenda para outro slot da mesma área. E-mail e API REST ficam para os próximos incrementos.
+> Etapa atual: o morador reserva, cancela e reagenda pela interface web; recebe e-mail (console ou API SendGrid); e pode usar a API REST autenticada em `/api/`.
 
 ## Requisitos
 
@@ -44,7 +44,7 @@ Senha de todos os usuários do seed: `condo123`.
 
 ### Fluxo: criar reserva
 
-Entrar como `morador1` → [Áreas comuns](http://localhost:8000/areas/) → abrir uma área → no calendário, escolher o dia → clicar num horário livre → preencher pessoas/convidados → Confirmar → a home [Minhas reservas](http://localhost:8000/) mostra o protocolo na message e na lista.
+Entrar como `morador1` → [Áreas comuns](http://localhost:8000/areas/) → abrir uma área → no calendário, escolher o dia → clicar num horário livre → preencher pessoas/convidados → Confirmar → a home [Minhas reservas](http://localhost:8000/) mostra o protocolo na message e na lista. Um e-mail de confirmação é disparado (ver seção E-mail abaixo).
 
 ### Fluxo: cancelar
 
@@ -54,16 +54,76 @@ Em Minhas reservas (ou no detalhe), use **Cancelar** se ainda estiver dentro do 
 
 Em Minhas reservas (ou no detalhe), use **Reagendar** se o status for Confirmada e o início ainda for futuro. Abre o calendário da **mesma área** (`/reservas/<id>/reagendar/`). Ao clicar num horário livre, abre o **formulário** pré-preenchido (início/fim editáveis no mesmo dia, convidados e observações). Só o POST do formulário marca a original como **Reagendada** e cria uma nova **Confirmada** (`related_reservation` + convidados novos). Slot ocupado por outra reserva devolve erro no formulário.
 
+## E-mail (requisito PJI240 — uso de API)
+
+O requisito de **uso de API** deste projeto é o **consumo de uma API externa de e-mail** (SendGrid via Anymail). A API DRF em `/api/` é interface complementar do próprio app, não substitui esse requisito.
+
+Backend escolhido pela env (sem `if` nas views):
+
+| Situação | Comportamento |
+|----------|----------------|
+| `EMAIL_API_KEY` vazio | `django.core.mail.backends.console.EmailBackend` — o fluxo **não quebra**; o texto do e-mail aparece no **log do container** |
+| `EMAIL_API_KEY` preenchido | Anymail + **SendGrid** (`anymail.backends.sendgrid.EmailBackend`) |
+
+Alternativa documentada (não implementada por padrão): Resend — `EMAIL_BACKEND=anymail.backends.resend.EmailBackend` e a mesma `EMAIL_API_KEY` (chave Resend).
+
+`DEFAULT_FROM_EMAIL` também vem do `.env`. Timeout curto na API; se o envio falhar, o erro é logado e a **reserva não é desfeita**.
+
+### Ver o e-mail no log (sem chave)
+
+Deixe `EMAIL_API_KEY=` vazio no `.env`, crie/cancele/reagende uma reserva e veja o stdout do web:
+
+```bash
+docker compose logs -f web
+```
+
+### Ligar a API SendGrid (com chave)
+
+No `.env`:
+
+```env
+EMAIL_API_KEY=sua-chave-sendgrid
+EMAIL_BACKEND=anymail.backends.sendgrid.EmailBackend
+DEFAULT_FROM_EMAIL=CondoAgenda <nao-responda@seudominio.com>
+```
+
+Reinicie o web (`docker compose up -d --build web` se as dependências mudaram). Destinatário: sempre `reservation.user.email` (sem dados de outros moradores).
+
+## API REST (DRF)
+
+Todas as rotas exigem autenticação (`IsAuthenticated`). Com sessão Django (cookie após login no site) ou Basic Auth.
+
+Exemplo — listar espaços autenticado (após login no browser, ou com Basic):
+
+```bash
+# Session: abra http://localhost:8000/api/spaces/ logado no mesmo browser
+# Ou Basic Auth:
+curl -u morador1:condo123 http://localhost:8000/api/spaces/
+```
+
+| Método | Caminho | Descrição |
+|--------|---------|-----------|
+| GET | `/api/spaces/` | Espaços ativos |
+| GET | `/api/spaces/<slug>/availability/?date=YYYY-MM-DD` | Slots `{date, slots:[{start,end,available}]}` (sem nome de quem ocupou) |
+| GET | `/api/reservations/me/` | Reservas do usuário autenticado |
+| POST | `/api/reservations/` | Criar (`space`, `date`, `start_time`, `end_time`, `guest_names[]`, `notes`) |
+| POST | `/api/reservations/<id>/cancel/` | Cancelar (só o dono) |
+| POST | `/api/reservations/<id>/reschedule/` | Reagendar (`date`, `start_time`, `end_time`, `guest_names[]`) |
+
+Morador só age nas próprias reservas (cancel/reschedule de outro → 404).
+
 ## O que esta tela cobre do MVP
 
 | Já disponível | Ainda não |
 |---------------|-----------|
 | Login / logout do morador | Cadastro público de morador |
-| Catálogo de áreas ativas | API REST e e-mail |
+| Catálogo de áreas ativas | IA |
 | Calendário do mês e horários do dia (ocupado × livre) | |
 | Nova reserva com convidados (`/areas/<slug>/reservar/`) | |
 | Detalhe, cancelar e reagendar (`/reservas/...`) | |
 | Lista “Minhas reservas” (protocolo, badge, Ver / Cancelar / Reagendar) | |
+| E-mail (console ou SendGrid) | |
+| API REST autenticada (`/api/...`) | |
 | Admin Django para gestão (`/admin/`) | |
 
 ## URLs do morador
@@ -102,13 +162,14 @@ Cria blocos, 3 espaços (Salão de Festas, Churrasqueira, Quadra), usuários aci
 docker compose exec web pytest
 ```
 
-Cobertura relevante: conflito de horário, cancelamento dentro/fora do prazo (service e view), reagendamento livre/ocupado, morador B não cancela reserva do morador A.
+Cobertura relevante: conflito de horário, cancelamento dentro/fora do prazo (service e view), reagendamento livre/ocupado, morador B não cancela reserva do morador A, e-mail via console sem exceção, availability com slot confirmed indisponível, POST `/api/reservations/` autenticado, cancel API fora do prazo → 400, usuário B não cancela via API, `send_reservation_email` no created.
 
 ## Stack
 
 | Camada        | Tecnologia                          |
 |---------------|-------------------------------------|
 | Backend       | Django 5 + Django REST Framework    |
+| E-mail        | django-anymail + SendGrid (ou console) |
 | Banco         | PostgreSQL 16                       |
 | Front         | HTML, CSS (Bootstrap 5 CDN), JS vanilla (`app/static/js/guests.js`) |
 | Estáticos     | WhiteNoise                          |
@@ -120,10 +181,11 @@ Cobertura relevante: conflito de horário, cancelamento dentro/fora do prazo (se
 ```
 config/          # projeto Django (settings, urls, wsgi, asgi)
 app/             # único app da aplicação
+  api/           # serializers, views e urls DRF (pacote, não é app Django)
   models/
   views/
   forms/
-  services/
+  services/      # reservas, availability, notifications (e-mail)
   urls/
   templates/
   static/
@@ -133,3 +195,14 @@ app/             # único app da aplicação
 ## Variáveis de ambiente
 
 Veja `.env.example`. O arquivo `.env` não é versionado; use-o a partir do exemplo.
+
+Principais de e-mail:
+
+```env
+EMAIL_BACKEND=
+DEFAULT_FROM_EMAIL=CondoAgenda <nao-responda@example.com>
+EMAIL_API_KEY=
+EMAIL_HOST=
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+```

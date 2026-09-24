@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from app.models import Guest, Reservation, ReservationEvent, Space, User
+from app.services.notifications import send_reservation_email
 
 
 class ReservationError(Exception):
@@ -101,6 +102,7 @@ def create_reservation(
         action=ReservationEvent.Action.CREATED,
         note="Reserva criada.",
     )
+    send_reservation_email(reservation, "created")
     return reservation
 
 
@@ -128,6 +130,7 @@ def cancel_reservation(
         action=ReservationEvent.Action.CANCELLED,
         note=note or "Reserva cancelada.",
     )
+    send_reservation_email(reservation, "cancelled")
     return reservation
 
 
@@ -215,4 +218,5 @@ def reschedule_reservation(
         action=ReservationEvent.Action.CREATED,
         note=f"Criada a partir de {reservation.protocol}.",
     )
+    send_reservation_email(new_reservation, "rescheduled")
     return new_reservation

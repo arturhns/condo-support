@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "anymail",
     "app.apps.CondoAgendaConfig",
 ]
 
@@ -111,23 +112,36 @@ MESSAGE_TAGS = {
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# E-mail (backend configurável; sem credenciais, apenas console)
-EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend",
-)
-EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
-EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
-EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True").lower() in ("1", "true", "yes")
+# E-mail: sem EMAIL_API_KEY → console (não quebra o fluxo; texto no log).
+# Com EMAIL_API_KEY → Anymail + SendGrid (HTTP externo). Alternativa: Resend.
+EMAIL_API_KEY = os.environ.get("EMAIL_API_KEY", "").strip()
 DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL",
-    "CondoAgenda <noreply@condo.local>",
+    "CondoAgenda <nao-responda@example.com>",
 )
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587") or "587")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True").lower() in ("1", "true", "yes")
+
+if EMAIL_API_KEY:
+    EMAIL_BACKEND = os.environ.get(
+        "EMAIL_BACKEND",
+        "anymail.backends.sendgrid.EmailBackend",
+    ).strip() or "anymail.backends.sendgrid.EmailBackend"
+    ANYMAIL = {
+        "SENDGRID_API_KEY": EMAIL_API_KEY,
+        "SENDGRID_TIMEOUT": 5,
+        "REQUESTS_TIMEOUT": 5,
+    }
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
     ],
 }
