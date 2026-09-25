@@ -21,7 +21,7 @@ docker compose up --build
 
 A aplicação fica em [http://localhost:8000](http://localhost:8000). O admin Django em [http://localhost:8000/admin/](http://localhost:8000/admin/).
 
-Na primeira subida o `entrypoint.sh` aguarda o Postgres, aplica as migrations e inicia o Gunicorn. Com `DEBUG=True` no `.env`, o Gunicorn sobe com `--reload`: alterações em Python (views, forms, etc.) são aplicadas sem `docker compose restart web`. Templates e estáticos do app também entram pelo volume `.:/app`.
+Na primeira subida o `entrypoint.sh` aguarda o Postgres (quando não há `DATABASE_URL`), aplica `migrate` e `collectstatic`, e executa o `CMD` do Dockerfile (Gunicorn). O `docker-compose.yml` de desenvolvimento mantém o volume `.:/app` — alterações locais de código/templates entram no container sem rebuild.
 
 ## Login do morador
 
@@ -175,6 +175,7 @@ Cobertura relevante: conflito de horário, cancelamento dentro/fora do prazo (se
 | Estáticos     | WhiteNoise                          |
 | Testes        | pytest-django                       |
 | Deploy local  | Docker Compose                      |
+| Deploy nuvem  | Render (`render.yaml` + Dockerfile) |
 
 ## Estrutura
 
@@ -206,3 +207,70 @@ EMAIL_HOST=
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
 ```
+
+Produção (comentadas no `.env.example`): `DEBUG=0`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `DATABASE_URL`, `EMAIL_API_KEY`, `DEFAULT_FROM_EMAIL`.
+
+## Publicação na nuvem
+
+Item **nuvem** da ementa do **PJI240**: o CondoAgenda sobe em produção com `DEBUG=0`, estáticos via WhiteNoise, Gunicorn e Postgres gerenciado.
+
+Plataforma documentada: **[Render](https://render.com/)** (arquivo `render.yaml` no repositório).
+
+### 1. Criar o serviço e o Postgres
+
+1. Faça push deste repositório para o GitHub/GitLab.
+2. No Render: **New → Blueprint** e selecione o repositório (usa o `render.yaml`).
+3. O Blueprint cria:
+   - **Web Service** `condoagenda` (build pelo `Dockerfile`, health check em `/contas/entrar/`);
+   - **Postgres** `condoagenda-db`, ligado ao web via `DATABASE_URL`.
+
+Alternativa sem Blueprint: **New → Web Service** (Docker) + **New → PostgreSQL**, e cole as envs abaixo manualmente (`DATABASE_URL` = Internal Database URL do Postgres).
+
+### 2. Colar as variáveis de ambiente
+
+No painel do Web Service (ou quando o Blueprint pedir `sync: false`):
+
+| Variável | Exemplo / observação |
+|----------|----------------------|
+| `DEBUG` | `0` (já vem no Blueprint) |
+| `SECRET_KEY` | gerada pelo Blueprint, ou uma chave longa aleatória |
+| `ALLOWED_HOSTS` | hostname do Render, ex.: `condoagenda.onrender.com` |
+| `CSRF_TRUSTED_ORIGINS` | origem HTTPS, ex.: `https://condoagenda.onrender.com` |
+| `DATABASE_URL` | injetada pelo Blueprint a partir do Postgres |
+| `EMAIL_API_KEY` | chave SendGrid (opcional; sem chave o e-mail vai para o log) |
+| `DEFAULT_FROM_EMAIL` | remetente verificado no provedor de e-mail |
+
+Não coloque valores secretos no repositório — só no painel da plataforma.
+
+### 3. Superusuário e seed (shell da plataforma)
+
+No Render: Web Service → **Shell**:
+
+```bash
+python manage.py createsuperuser
+```
+
+Seed opcional (cria usuários/senhas de demonstração — **não use em produção real com dados sensíveis**):
+
+```bash
+python manage.py seed_demo
+```
+
+Senhas do seed: `condo123` (`staff`, `morador1`, `morador2`).
+
+### 4. URL pública esperada
+
+Após o deploy: `https://<nome-do-servico>.onrender.com` (ex.: `https://condoagenda.onrender.com`).
+
+Login do morador: `https://<nome-do-servico>.onrender.com/contas/entrar/`  
+Admin: `https://<nome-do-servico>.onrender.com/admin/`
+
+### Conferir collectstatic localmente
+
+Com o stack de desenvolvimento no ar (ou só o serviço web):
+
+```bash
+docker compose run --rm -e DEBUG=0 web python manage.py collectstatic --noinput
+```
+
+Os arquivos devem ir para `staticfiles/` (no container; com volume, também no host). Em produção o `entrypoint.sh` já roda `collectstatic --noinput` antes do Gunicorn.
