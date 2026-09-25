@@ -234,7 +234,7 @@ No painel do Web Service (ou quando o Blueprint pedir `sync: false`):
 |----------|----------------------|
 | `DEBUG` | `0` (já vem no Blueprint) |
 | `SECRET_KEY` | gerada pelo Blueprint, ou uma chave longa aleatória |
-| `ALLOWED_HOSTS` | hostname do Render, ex.: `condoagenda.onrender.com` |
+| `ALLOWED_HOSTS` | hostname do Render, ex.: `condoagenda.onrender.com` (obrigatório, ou o app não sobe) |
 | `CSRF_TRUSTED_ORIGINS` | origem HTTPS, ex.: `https://condoagenda.onrender.com` |
 | `DATABASE_URL` | injetada pelo Blueprint a partir do Postgres |
 | `EMAIL_API_KEY` | chave SendGrid (opcional; sem chave o e-mail vai para o log) |
@@ -262,7 +262,7 @@ Senhas do seed: `condo123` (`staff`, `morador1`, `morador2`).
 
 Após o deploy: `https://<nome-do-servico>.onrender.com` (ex.: `https://condoagenda.onrender.com`).
 
-Login do morador: `https://<nome-do-servico>.onrender.com/contas/entrar/`  
+Login do morador: `https://<nome-do-servico>.onrender.com/contas/entrar/`
 Admin: `https://<nome-do-servico>.onrender.com/admin/`
 
 ### Conferir collectstatic localmente
