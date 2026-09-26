@@ -32,4 +32,10 @@ services:
       - key: DEFAULT_FROM_EMAIL
         sync: false
       - key: EMAIL_BACKEND
-        value: anymail.backends.sendgrid.EmailBackend
+        value: anymail.backends.sendgrid.EmailBacken
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false

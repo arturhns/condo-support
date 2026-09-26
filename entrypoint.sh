@@ -26,4 +26,12 @@ fi
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
+# Superuser só se a senha estiver definida (Render/dashboard). Não roda seed_demo.
+if [ -n "${DJANGO_SUPERUSER_PASSWORD:-}" ]; then
+  echo "Criando superusuário (DJANGO_SUPERUSER_*) se ainda não existir..."
+  if ! python manage.py createsuperuser --noinput; then
+    echo "createsuperuser ignorado (username provavelmente já existe); seguindo o boot."
+  fi
+fi
+
 exec "$@"

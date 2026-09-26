@@ -21,7 +21,7 @@ docker compose up --build
 
 A aplicação fica em [http://localhost:8000](http://localhost:8000). O admin Django em [http://localhost:8000/admin/](http://localhost:8000/admin/).
 
-Na primeira subida o `entrypoint.sh` aguarda o Postgres (quando não há `DATABASE_URL`), aplica `migrate` e `collectstatic`, e executa o `CMD` do Dockerfile (Gunicorn). O `docker-compose.yml` de desenvolvimento mantém o volume `.:/app` — alterações locais de código/templates entram no container sem rebuild.
+Na primeira subida o `entrypoint.sh` aguarda o Postgres (quando não há `DATABASE_URL`), aplica `migrate` e `collectstatic`, e — se `DJANGO_SUPERUSER_PASSWORD` estiver definido — tenta `createsuperuser --noinput` (idempotente se o username já existir). Em seguida executa o `CMD` do Dockerfile (Gunicorn). O `docker-compose.yml` de desenvolvimento mantém o volume `.:/app` — alterações locais de código/templates entram no container sem rebuild.
 
 ## Login do morador
 
@@ -208,7 +208,7 @@ EMAIL_PORT=587
 EMAIL_USE_TLS=True
 ```
 
-Produção (comentadas no `.env.example`): `DEBUG=0`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `DATABASE_URL`, `EMAIL_API_KEY`, `DEFAULT_FROM_EMAIL`.
+Produção (comentadas no `.env.example`): `DEBUG=0`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `DATABASE_URL`, `EMAIL_API_KEY`, `DEFAULT_FROM_EMAIL`. Superuser no boot: `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL`, `DJANGO_SUPERUSER_PASSWORD` (senha só no painel; não versionar).
 
 ## Publicação na nuvem
 
@@ -228,7 +228,7 @@ Alternativa sem Blueprint: **New → Web Service** (Docker) + **New → PostgreS
 
 ### 2. Colar as variáveis de ambiente
 
-No painel do Web Service (ou quando o Blueprint pedir `sync: false`):
+No painel do Web Service → **Environment** (ou quando o Blueprint pedir `sync: false`):
 
 | Variável | Exemplo / observação |
 |----------|----------------------|
@@ -239,24 +239,22 @@ No painel do Web Service (ou quando o Blueprint pedir `sync: false`):
 | `DATABASE_URL` | injetada pelo Blueprint a partir do Postgres |
 | `EMAIL_API_KEY` | chave SendGrid (opcional; sem chave o e-mail vai para o log) |
 | `DEFAULT_FROM_EMAIL` | remetente verificado no provedor de e-mail |
+| `DJANGO_SUPERUSER_USERNAME` | ex.: `admin` (obrigatório para criar o admin no boot) |
+| `DJANGO_SUPERUSER_EMAIL` | ex.: `admin@condo.local` |
+| `DJANGO_SUPERUSER_PASSWORD` | senha forte; **só no dashboard** — não versionar |
 
 Não coloque valores secretos no repositório — só no painel da plataforma.
 
-### 3. Superusuário e seed (shell da plataforma)
+### 3. Superusuário no deploy (sem Shell)
 
-No Render: Web Service → **Shell**:
+Com as três `DJANGO_SUPERUSER_*` preenchidas no Environment:
 
-```bash
-python manage.py createsuperuser
-```
+- o **primeiro deploy** cria o admin via `createsuperuser --noinput` no `entrypoint.sh`;
+- deploys seguintes ignoram o erro *"user already exists"* e sobem o Gunicorn normalmente;
+- login em `/admin/` com esse usuário;
+- blocos, áreas e moradores se cadastram pelo admin — **sem `seed_demo` em produção** (senhas de demo não devem ir para o ar).
 
-Seed opcional (cria usuários/senhas de demonstração — **não use em produção real com dados sensíveis**):
-
-```bash
-python manage.py seed_demo
-```
-
-Senhas do seed: `condo123` (`staff`, `morador1`, `morador2`).
+Se a URL permanecer pública depois da banca, **troque a senha** do superusuário (ou desative o serviço).
 
 ### 4. URL pública esperada
 
